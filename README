@@ -5,3 +5,4 @@ The backup_system script backs up any Linux system using fsarchiver into a 7 day
 
 TODO
 - Mail me if the backup didn't perform.
+- Make more generic and easy to configure
