@@ -1,0 +1,102 @@
+#!/usr/bin/ruby
+#
+# Filename: backup_system 
+# Author:   Michael Pope
+# Desc:     This script does a LIVE system and data backup everynight into a roll over backup on a separate drive.
+#
+# Keep a configurable amount of days as a rollback.  Remove old backups.
+# Allow copying to external media such as a memory stick or external drive.  Must check that it exists and has enough room.
+# 
+# You should end up with 3 files each day which look like this:
+#
+# -rw-r--r-- 1 root root 9.0G 2010-07-28 05:15 20100728-tony.fsa       --> System Backup done with fsarchiver
+# -rw-r--r-- 1 root root  84M 2010-07-28 05:53 20100728-tony.log       --> Log file for both.
+#
+# Report to a log file.
+#
+#
+require 'logger'
+
+class Fixnum
+  def seconds
+    self
+  end
+  def minutes
+    self * 60
+  end
+  def hours
+    self * 60 * 60
+  end
+  def days
+    self * 60 * 60 * 24
+  end
+end
+
+
+# Set variables
+keep_days = 7
+backup_dir = "/media/FreeAgent\ Drive/backup/"
+backup_dev = "/dev/sda1"
+post_filename="-tony"
+
+if File.exists?(backup_dir)
+	# Create dates
+	date = Time.now.strftime("%Y%m%d")
+	prev_date = (Time.now - keep_days.days).strftime("%Y%m%d")
+
+	# Create log
+	log_file = "#{backup_dir}#{date}-tony.log"
+	logger = Logger.new(log_file)
+
+	# Create filename
+	filename="#{date}#{post_filename}.fsa"
+	backup_file = "#{backup_dir}#{filename}"
+
+	prev_filename="#{backup_dir}#{prev_date}#{post_filename}.fsa"
+	prev_log="#{backup_dir}#{prev_date}#{post_filename}.log"
+
+	# Start log file
+	output = %x[/usr/sbin/fsarchiver -V 2>&1]
+	logger.info "Start backup
+
+	Using #{output} 
+
+	Show info about the archive
+	fsarchive archinfo #{filename}
+
+	To backup restore system start the rescue cd and put in a new hard drive, then:
+	fsarchiver restfs -v #{filename} id=0,dest=#{backup_dev}
+	"
+
+
+	# Remove old files
+	[prev_filename, prev_log].each do |file|
+	  if File.exists?(file)
+	    logger.info "Remove #{file}..."
+	    `rm #{file}`
+	  end
+	end
+
+	# Backup and log
+	logger.info "Backup to #{backup_file}..."
+
+	# fsarchiver
+	# -z 9 = High compression
+	# -j 2 = Use two threads
+	# -v   = verbose
+	# -A   = Allow to save a file system which is mounted (LIVE mode)
+	# 2>&1 = Redirect stderr to stdout (Get all the information for our logfile)
+	backup_cmd="/usr/sbin/fsarchiver savefs -z 9 -j 2 -v -A #{backup_file} #{backup_dev} 2>&1"
+	logger.info "Performing command: \n#{backup_cmd}"
+
+	# %x executes the command and stores the output into a variable, which we have called 'output'
+	output=%x(#{backup_cmd})
+
+	# Write output to our log file.
+	logger.info output
+
+	logger.info "End Backup"
+	logger.close
+else
+	puts "Backup dir #{backup_dir} doesn't exist"
+end

@@ -1,0 +1,7 @@
+Backup_system
+
+The backup_system script backs up any Linux system using fsarchiver into a 7 day roll over backup.  It's has full log support.
+
+
+TODO
+- Mail me if the backup didn't perform.
